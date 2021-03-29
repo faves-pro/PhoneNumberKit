@@ -3,13 +3,12 @@
 //  PhoneNumberKit
 //
 //  Created by Roy Marmelstein on 03/10/2015.
-//  Copyright © 2015 Roy Marmelstein. All rights reserved.
+//  Copyright © 2021 Roy Marmelstein. All rights reserved.
 //
 
 import Foundation
 
 final class MetadataManager {
-
     var territories = [MetadataTerritory]()
     var territoriesByCode = [UInt64: [MetadataTerritory]]()
     var mainTerritoryByCode = [UInt64: MetadataTerritory]()
@@ -20,16 +19,22 @@ final class MetadataManager {
     /// Private init populates metadata territories and the two hashed dictionaries for faster lookup.
     ///
     /// - Parameter metadataCallback: a closure that returns metadata as JSON Data.
-    public init (metadataCallback: MetadataCallback) {
-        territories = populateTerritories(metadataCallback: metadataCallback)
-        for item in territories {
-            var currentTerritories: [MetadataTerritory] = territoriesByCode[item.countryCode] ?? [MetadataTerritory]()
-            currentTerritories.append(item)
-            territoriesByCode[item.countryCode] = currentTerritories
-            if mainTerritoryByCode[item.countryCode] == nil || item.mainCountryForCode == true {
-                mainTerritoryByCode[item.countryCode] = item
+    public init(metadataCallback: MetadataCallback) {
+        self.territories = self.populateTerritories(metadataCallback: metadataCallback)
+        for item in self.territories {
+            var currentTerritories: [MetadataTerritory] = self.territoriesByCode[item.countryCode] ?? [MetadataTerritory]()
+            // In the case of multiple countries sharing a calling code, such as the NANPA countries,
+            // the one indicated with "isMainCountryForCode" in the metadata should be first.
+            if item.mainCountryForCode {
+                currentTerritories.insert(item, at: 0)
+            } else {
+                currentTerritories.append(item)
             }
-            territoriesByCountry[item.codeID] = item
+            self.territoriesByCode[item.countryCode] = currentTerritories
+            if self.mainTerritoryByCode[item.countryCode] == nil || item.mainCountryForCode == true {
+                self.mainTerritoryByCode[item.countryCode] = item
+            }
+            self.territoriesByCountry[item.codeID] = item
         }
     }
 
@@ -39,29 +44,21 @@ final class MetadataManager {
         territoriesByCountry.removeAll()
     }
 
-
     /// Populates the metadata from a metadataCallback.
     ///
     /// - Parameter metadataCallback: a closure that returns metadata as JSON Data.
     /// - Returns: array of MetadataTerritory objects
-    fileprivate func populateTerritories(metadataCallback: MetadataCallback) -> [MetadataTerritory] {
+    private func populateTerritories(metadataCallback: MetadataCallback) -> [MetadataTerritory] {
         var territoryArray = [MetadataTerritory]()
         do {
-            let jsonData: Data?  = try metadataCallback()
-            if let jsonData = jsonData,
-                let jsonObjects = try JSONSerialization.jsonObject(with: jsonData, options: JSONSerialization.ReadingOptions.allowFragments) as? NSDictionary,
-                let metadataDict = jsonObjects["phoneNumberMetadata"] as? NSDictionary,
-                let metadataTerritories = metadataDict["territories"] as? NSDictionary ,
-                let metadataTerritoryArray = metadataTerritories["territory"] as? NSArray {
-                    metadataTerritoryArray.forEach({
-                        if let territoryDict = $0 as? NSDictionary {
-                            let parsedTerritory = MetadataTerritory(jsondDict: territoryDict)
-                            territoryArray.append(parsedTerritory)
-                        }
-                    })
+            let jsonData: Data? = try metadataCallback()
+            let jsonDecoder = JSONDecoder()
+            if let jsonData = jsonData, let metadata: PhoneNumberMetadata = try? jsonDecoder.decode(PhoneNumberMetadata.self, from: jsonData) {
+                territoryArray = metadata.territories
             }
+        } catch {
+            debugPrint("ERROR: Unable to load PhoneNumberMetadata.json resource: \(error.localizedDescription)")
         }
-        catch {}
         return territoryArray
     }
 
@@ -73,7 +70,7 @@ final class MetadataManager {
     ///
     /// - returns: optional array of MetadataTerritory objects.
     internal func filterTerritories(byCode code: UInt64) -> [MetadataTerritory]? {
-        return territoriesByCode[code]
+        return self.territoriesByCode[code]
     }
 
     /// Get the MetadataTerritory objects for an ISO 639 compliant region code.
@@ -82,7 +79,7 @@ final class MetadataManager {
     ///
     /// - returns: A MetadataTerritory object.
     internal func filterTerritories(byCountry country: String) -> MetadataTerritory? {
-        return territoriesByCountry[country.uppercased()]
+        return self.territoriesByCountry[country.uppercased()]
     }
 
     /// Get the main MetadataTerritory objects for a given country code.
@@ -91,8 +88,6 @@ final class MetadataManager {
     ///
     /// - returns: A MetadataTerritory object.
     internal func mainTerritory(forCode code: UInt64) -> MetadataTerritory? {
-        return mainTerritoryByCode[code]
+        return self.mainTerritoryByCode[code]
     }
-
-
 }
