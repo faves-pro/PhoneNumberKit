@@ -83,7 +83,16 @@ final class ParseManager {
         }
 
         // Check if the number if of a known type (10)
-        let type: PhoneNumberType = .unknown
+        var type: PhoneNumberType = .unknown
+        if ignoreType == false {
+            if let regionCode = getRegionCode(of: finalNationalNumber, countryCode: countryCode, leadingZero: leadingZero), let foundMetadata = metadataManager.territoriesByCountry[regionCode] {
+                regionMetadata = foundMetadata
+            }
+            type = parser.checkNumberType(String(nationalNumber), metadata: regionMetadata, leadingZero: leadingZero)
+            if type == .unknown {
+                throw PhoneNumberError.unknownType
+            }
+        }
 
         let phoneNumber = PhoneNumber(numberString: numberString, countryCode: countryCode, leadingZero: leadingZero, nationalNumber: finalNationalNumber, numberExtension: numberExtension, type: type, regionID: regionMetadata.codeID)
         return phoneNumber
