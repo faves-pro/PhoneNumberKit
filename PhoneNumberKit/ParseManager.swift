@@ -72,6 +72,10 @@ final class ParseManager {
         // National Prefix Strip (7)
         parser.stripNationalPrefix(&nationalNumber, metadata: regionMetadata)
 		
+        // Test number against general number description for correct metadata (8)
+        if let generalNumberDesc = regionMetadata.generalDesc, (regexManager.hasValue(generalNumberDesc.nationalNumberPattern) == false || parser.isNumberMatchingDesc(nationalNumber, numberDesc: generalNumberDesc) == false) {
+            throw PhoneNumberError.notANumber
+        }
         // Finalize remaining parameters and create phone number object (9)
         let leadingZero = nationalNumber.hasPrefix("0")
         guard let finalNationalNumber = UInt64(nationalNumber) else{
