@@ -169,9 +169,9 @@ final class ParseManager {
         self.parser.stripNationalPrefix(&nationalNumber, metadata: regionMetadata)
 
         // Test number against general number description for correct metadata (2)
-        if let generalNumberDesc = regionMetadata.generalDesc, regexManager.hasValue(generalNumberDesc.nationalNumberPattern) == false || parser.isNumberMatchingDesc(nationalNumber, numberDesc: generalNumberDesc) == false {
-            return nil
-        }
+//        if let generalNumberDesc = regionMetadata.generalDesc, regexManager.hasValue(generalNumberDesc.nationalNumberPattern) == false || parser.isNumberMatchingDesc(nationalNumber, numberDesc: generalNumberDesc) == false {
+//            return nil
+//        }
         // Finalize remaining parameters and create phone number object (3)
         let leadingZero = nationalNumber.hasPrefix("0")
         guard let finalNationalNumber = UInt64(nationalNumber) else {
