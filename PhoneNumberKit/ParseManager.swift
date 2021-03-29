@@ -180,15 +180,15 @@ final class ParseManager {
 
         // Check if the number if of a known type (4)
         var type: PhoneNumberType = .unknown
-        if ignoreType == false {
-            if let regionCode = getRegionCode(of: finalNationalNumber, countryCode: countryCode, leadingZero: leadingZero), let foundMetadata = metadataManager.territoriesByCountry[regionCode] {
-                regionMetadata = foundMetadata
-            }
-            type = self.parser.checkNumberType(String(nationalNumber), metadata: regionMetadata, leadingZero: leadingZero)
-            if type == .unknown {
-                throw PhoneNumberError.unknownType
-            }
-        }
+//        if ignoreType == false {
+//            if let regionCode = getRegionCode(of: finalNationalNumber, countryCode: countryCode, leadingZero: leadingZero), let foundMetadata = metadataManager.territoriesByCountry[regionCode] {
+//                regionMetadata = foundMetadata
+//            }
+//            type = self.parser.checkNumberType(String(nationalNumber), metadata: regionMetadata, leadingZero: leadingZero)
+//            if type == .unknown {
+//                throw PhoneNumberError.unknownType
+//            }
+//        }
 
         return PhoneNumber(numberString: numberString, countryCode: countryCode, leadingZero: leadingZero, nationalNumber: finalNationalNumber, numberExtension: numberExtension, type: type, regionID: regionMetadata.codeID)
     }
