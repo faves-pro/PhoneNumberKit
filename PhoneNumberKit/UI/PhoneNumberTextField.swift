@@ -27,6 +27,7 @@ open class PhoneNumberTextField: UITextField, UITextFieldDelegate {
                 super.text = newValue
             }
             NotificationCenter.default.post(name: UITextField.textDidChangeNotification, object: self)
+            self.updateFlag()
         }
         get {
             return super.text
@@ -93,7 +94,7 @@ open class PhoneNumberTextField: UITextField, UITextFieldDelegate {
     #if compiler(>=5.1)
     /// Available on iOS 13 and above just.
     public var countryCodePlaceholderColor: UIColor = {
-        if #available(iOS 13.0, *) {
+        if #available(iOS 13.0, tvOS 13.0, *) {
             return .secondaryLabel
         } else {
             return UIColor(red: 0, green: 0, blue: 0.0980392, alpha: 0.22)
@@ -106,7 +107,7 @@ open class PhoneNumberTextField: UITextField, UITextFieldDelegate {
 
     /// Available on iOS 13 and above just.
     public var numberPlaceholderColor: UIColor = {
-        if #available(iOS 13.0, *) {
+        if #available(iOS 13.0, tvOS 13.0, *) {
             return .tertiaryLabel
         } else {
             return UIColor(red: 0, green: 0, blue: 0.0980392, alpha: 0.22)
@@ -219,7 +220,6 @@ open class PhoneNumberTextField: UITextField, UITextFieldDelegate {
      */
     public convenience init(withPhoneNumberKit phoneNumberKit: PhoneNumberKit) {
         self.init(frame: .zero, phoneNumberKit: phoneNumberKit)
-        self.setup()
     }
 
     /**
