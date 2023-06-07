@@ -6,7 +6,7 @@
 //  Copyright © 2021 Roy Marmelstein. All rights reserved.
 //
 
-#if canImport(UIKit)
+#if os(iOS)
 
 import Foundation
 import UIKit
@@ -132,6 +132,8 @@ open class PhoneNumberTextField: UITextField, UITextFieldDelegate {
         get { _withDefaultPickerUI }
         set { _withDefaultPickerUI = newValue }
     }
+    
+    public var modalPresentationStyle: UIModalPresentationStyle?
 
     public var isPartialFormatterEnabled = true
 
@@ -147,12 +149,12 @@ open class PhoneNumberTextField: UITextField, UITextFieldDelegate {
         withPrefix: withPrefix
     )
 
-    let nonNumericSet: NSCharacterSet = {
-        var mutableSet = NSMutableCharacterSet.decimalDigit().inverted
+    let nonNumericSet: CharacterSet = {
+        var mutableSet = CharacterSet.decimalDigits.inverted
         mutableSet.remove(charactersIn: PhoneNumberConstants.plusChars)
         mutableSet.remove(charactersIn: PhoneNumberConstants.pausesAndWaitsChars)
         mutableSet.remove(charactersIn: PhoneNumberConstants.operatorChars)
-        return mutableSet as NSCharacterSet
+        return mutableSet
     }()
 
     private weak var _delegate: UITextFieldDelegate?
@@ -275,6 +277,15 @@ open class PhoneNumberTextField: UITextField, UITextFieldDelegate {
 
     open func updateFlag() {
         guard self.withFlag else { return }
+        
+        if let phoneNumber = phoneNumber,
+           let regionCode = phoneNumber.regionID,
+           regionCode != currentRegion,
+           phoneNumber.countryCode == phoneNumberKit.countryCode(for: currentRegion) {
+            _defaultRegion = regionCode
+            partialFormatter.defaultRegion = regionCode
+        }
+        
         let flagBase = UnicodeScalar("🇦").value - UnicodeScalar("A").value
 
         let flag = self.currentRegion
@@ -284,6 +295,18 @@ open class PhoneNumberTextField: UITextField, UITextFieldDelegate {
             .joined()
 
         self.flagButton.setTitle(flag + " ", for: .normal)
+        self.flagButton.accessibilityLabel = NSLocalizedString(
+            "PhoneNumberKit.CountryCodePickerEntryButton.AccessibilityLabel",
+            value: "Select your country code",
+            comment: "Accessibility Label for Country Code Picker button")
+
+        if let countryName = Locale.autoupdatingCurrent.localizedString(forRegionCode: self.currentRegion) {
+            let selectedFormat = NSLocalizedString(
+                "PhoneNumberKit.CountryCodePickerEntryButton.AccessibilityHint",
+                value: "%@ selected",
+                comment: "Accessiblity hint for currently selected country code")
+            self.flagButton.accessibilityHint = String(format: selectedFormat, countryName)
+        }
         let fontSize = (font ?? UIFont.preferredFont(forTextStyle: .body)).pointSize
         self.flagButton.titleLabel?.font = UIFont.systemFont(ofSize: fontSize)
     }
@@ -321,6 +344,9 @@ open class PhoneNumberTextField: UITextField, UITextFieldDelegate {
             nav.pushViewController(vc, animated: true)
         } else {
             let nav = UINavigationController(rootViewController: vc)
+            if modalPresentationStyle != nil {
+                nav.modalPresentationStyle = modalPresentationStyle!
+            }
             containingViewController?.present(nav, animated: true)
         }
     }
@@ -358,7 +384,7 @@ open class PhoneNumberTextField: UITextField, UITextFieldDelegate {
         for i in cursorEnd..<textAsNSString.length {
             let cursorRange = NSRange(location: i, length: 1)
             let candidateNumberAfterCursor: NSString = textAsNSString.substring(with: cursorRange) as NSString
-            if candidateNumberAfterCursor.rangeOfCharacter(from: self.nonNumericSet as CharacterSet).location == NSNotFound {
+            if candidateNumberAfterCursor.rangeOfCharacter(from: self.nonNumericSet).location == NSNotFound {
                 for j in cursorRange.location..<textAsNSString.length {
                     let candidateCharacter = textAsNSString.substring(with: NSRange(location: j, length: 1))
                     if candidateCharacter == candidateNumberAfterCursor as String {
@@ -416,14 +442,14 @@ open class PhoneNumberTextField: UITextField, UITextFieldDelegate {
         let modifiedTextField = textAsNSString.replacingCharacters(in: range, with: string)
 
         let filteredCharacters = modifiedTextField.filter {
-            String($0).rangeOfCharacter(from: (textField as! PhoneNumberTextField).nonNumericSet as CharacterSet) == nil
+            String($0).rangeOfCharacter(from: (textField as! PhoneNumberTextField).nonNumericSet) == nil
         }
         let rawNumberString = String(filteredCharacters)
 
         let formattedNationalNumber = self.partialFormatter.formatPartial(rawNumberString as String)
         var selectedTextRange: NSRange?
 
-        let nonNumericRange = (changedRange.rangeOfCharacter(from: self.nonNumericSet as CharacterSet).location != NSNotFound)
+        let nonNumericRange = (changedRange.rangeOfCharacter(from: self.nonNumericSet).location != NSNotFound)
         if range.length == 1, string.isEmpty, nonNumericRange {
             selectedTextRange = self.selectionRangeForNumberReplacement(textField: textField, formattedText: modifiedTextField)
             textField.text = modifiedTextField
@@ -438,10 +464,14 @@ open class PhoneNumberTextField: UITextField, UITextFieldDelegate {
         }
 
         // we change the default region to be the one most recently typed
-        self._defaultRegion = self.currentRegion
-        self.partialFormatter.defaultRegion = self.currentRegion
-        self.updateFlag()
-        self.updatePlaceholder()
+        // but only when the withFlag is true as to not confuse the user who don't see the flag
+        if withFlag == true
+        {
+            self._defaultRegion = self.currentRegion
+            self.partialFormatter.defaultRegion = self.currentRegion
+            self.updateFlag()
+            self.updatePlaceholder()
+        }
 
         return false
     }
@@ -486,6 +516,11 @@ open class PhoneNumberTextField: UITextField, UITextFieldDelegate {
 
     open func textFieldShouldReturn(_ textField: UITextField) -> Bool {
         return self._delegate?.textFieldShouldReturn?(textField) ?? true
+    }
+
+    @available(iOS 13.0, tvOS 13.0, *)
+    open func textFieldDidChangeSelection(_ textField: UITextField) {
+        self._delegate?.textFieldDidChangeSelection?(textField)
     }
 
     private func updateTextFieldDidEndEditing(_ textField: UITextField) {
